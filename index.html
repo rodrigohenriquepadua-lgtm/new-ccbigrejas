@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapa CCB Manaus</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+    body { margin: 0; font-family: Arial; }
+    #map { height: 100vh; }
+
+    .btn-rota {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 6px 10px;
+        background: #007bff;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        font-size: 13px;
+    }
+</style>
+</head>
+
+<body>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+
+const map = L.map('map').setView([-3.05, -60.0], 13);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+}).addTo(map);
+
+// Ícones
+const iconeAzul = L.icon({
+    iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+    iconSize: [32, 32]
+});
+
+const iconeRoxo = L.icon({
+    iconUrl: 'https://maps.google.com/mapfiles/ms/icons/purple-dot.png',
+    iconSize: [32, 32]
+});
+
+// Igrejas
+const igrejas = [
+    { nome: "CCB - Monte das Oliveiras", lat: -2.9991, lng: -59.9964 },
+    { nome: "CCB - Manoa", lat: -3.0251, lng: -60.0015 }
+];
+
+let minhaLocalizacao = null;
+let marcadorUsuario;
+let marcadoresIgrejas = [];
+
+// Função para criar popup com rota
+function criarPopup(igreja) {
+
+    let link;
+
+    if (minhaLocalizacao) {
+        link = `https://www.google.com/maps/dir/?api=1&origin=${minhaLocalizacao.lat},${minhaLocalizacao.lng}&destination=${igreja.lat},${igreja.lng}`;
+    } else {
+        link = `https://www.google.com/maps/dir/?api=1&destination=${igreja.lat},${igreja.lng}`;
+    }
+
+    return `
+        <b>${igreja.nome}</b><br>
+        <a href="${link}" target="_blank" class="btn-rota">
+            🚗 Ir pelo Google Maps
+        </a>
+    `;
+}
+
+// Adicionar igrejas (sempre aparece)
+function adicionarIgrejas() {
+
+    igrejas.forEach(igreja => {
+
+        const marker = L.marker([igreja.lat, igreja.lng], { icon: iconeAzul })
+            .addTo(map)
+            .bindPopup(criarPopup(igreja));
+
+        marcadoresIgrejas.push({ marker, igreja });
+    });
+}
+
+// Atualizar popups depois que pega localização
+function atualizarPopups() {
+    marcadoresIgrejas.forEach(item => {
+        item.marker.setPopupContent(criarPopup(item.igreja));
+    });
+}
+
+// Pegar localização
+function pegarLocalizacao() {
+
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(pos => {
+
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        minhaLocalizacao = { lat, lng };
+
+        if (marcadorUsuario) {
+            map.removeLayer(marcadorUsuario);
+        }
+
+        marcadorUsuario = L.marker([lat, lng], { icon: iconeRoxo })
+            .addTo(map)
+            .bindPopup("📍 Você está aqui")
+            .openPopup();
+
+        map.setView([lat, lng], 14);
+
+        atualizarPopups(); // 🔥 aqui atualiza os links
+
+    });
+}
+
+// 1. Primeiro mostra igrejas
+adicionarIgrejas();
+
+// 2. Depois tenta pegar localização
+pegarLocalizacao();
+
+</script>
+
+</body>
+</html>
