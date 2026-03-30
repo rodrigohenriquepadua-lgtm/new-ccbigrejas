@@ -21,12 +21,54 @@
         border-radius: 5px;
         font-size: 13px;
     }
+
+    /* Painel superior direito */
+    .painel {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        width: 260px;
+        background: white;
+        padding: 12px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        z-index: 1000;
+        font-size: 14px;
+        min-width: 250px;
+    }
+
+    /* Painel inferior */
+    .painel-bottom {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        z-index: 1000;
+    }
+
+    button {
+        padding: 10px 15px;
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
 </style>
 </head>
 
 <body>
 
 <div id="map"></div>
+
+<div class="painel" id="painelCulto">
+    <b>📅 Dias de Culto</b><br>
+    Clique em uma igreja
+</div>
+
+<div class="painel-bottom">
+    <button onclick="igrejaMaisProxima()">⛪ Igreja mais próxima</button>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -44,24 +86,52 @@ const iconeAzul = L.icon({
     iconSize: [32, 32]
 });
 
-const iconeRoxo = L.icon({
-    iconUrl: 'https://maps.google.com/mapfiles/ms/icons/purple-dot.png',
+const iconeGrande = L.icon({
+    iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+    iconSize: [45, 45]
+});
+
+const iconeYellow = L.icon({
+    iconUrl: 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png',
     iconSize: [32, 32]
 });
 
-// Igrejas
+// Igrejas com dias de culto
 const igrejas = [
-    { nome: "CCB - Monte das Oliveiras", lat: -2.9991, lng: -59.9964 },
-    { nome: "CCB - Manoa", lat: -3.0251, lng: -60.0015 }
+    { 
+        nome: "CCB - Monte das Oliveiras", 
+        lat: -2.9991, 
+        lng: -59.9964,
+        culto: "<br>Quinta 19:30h</br><br>Domingo 18:30h</br>"
+    },
+    { 
+        nome: "CCB - Manoa", 
+        lat: -3.0251, 
+        lng: -60.0015,
+        culto: "<br>Terça 19:30h</br><br>Sexta 19:30h</br>"
+    }
 ];
 
 let minhaLocalizacao = null;
 let marcadorUsuario;
-let marcadoresIgrejas = [];
+let marcadores = [];
 
-// Função para criar popup com rota
+// Distância (Haversine)
+function distancia(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI/180;
+    const dLon = (lon2 - lon1) * Math.PI/180;
+
+    const a = Math.sin(dLat/2)**2 +
+        Math.cos(lat1*Math.PI/180) *
+        Math.cos(lat2*Math.PI/180) *
+        Math.sin(dLon/2)**2;
+
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+}
+
+// Popup com rota
 function criarPopup(igreja) {
-
     let link;
 
     if (minhaLocalizacao) {
@@ -78,7 +148,13 @@ function criarPopup(igreja) {
     `;
 }
 
-// Adicionar igrejas (sempre aparece)
+// Atualiza painel
+function atualizarPainel(igreja) {
+    document.getElementById("painelCulto").innerHTML =
+        `<b>📅 ${igreja.nome}</b><br>${igreja.culto}`;
+}
+
+// Adicionar igrejas
 function adicionarIgrejas() {
 
     igrejas.forEach(igreja => {
@@ -87,18 +163,56 @@ function adicionarIgrejas() {
             .addTo(map)
             .bindPopup(criarPopup(igreja));
 
-        marcadoresIgrejas.push({ marker, igreja });
+        marker.on("click", () => {
+            atualizarPainel(igreja);
+        });
+
+        marcadores.push({ marker, igreja });
     });
 }
 
-// Atualizar popups depois que pega localização
+// Igreja mais próxima
+function igrejaMaisProxima() {
+
+    if (!minhaLocalizacao) return;
+
+    let menor = Infinity;
+    let maisProxima = null;
+
+    marcadores.forEach(item => {
+
+        const d = distancia(
+            minhaLocalizacao.lat,
+            minhaLocalizacao.lng,
+            item.igreja.lat,
+            item.igreja.lng
+        );
+
+        if (d < menor) {
+            menor = d;
+            maisProxima = item;
+        }
+
+        // volta ícone normal
+        item.marker.setIcon(iconeAzul);
+    });
+
+    if (maisProxima) {
+        maisProxima.marker.setIcon(iconeGrande);
+        maisProxima.marker.openPopup();
+        atualizarPainel(maisProxima.igreja);
+        map.setView(maisProxima.marker.getLatLng(), 15);
+    }
+}
+
+// Atualiza popups
 function atualizarPopups() {
-    marcadoresIgrejas.forEach(item => {
+    marcadores.forEach(item => {
         item.marker.setPopupContent(criarPopup(item.igreja));
     });
 }
 
-// Pegar localização
+// Geolocalização automática (mantida)
 function pegarLocalizacao() {
 
     if (!navigator.geolocation) return;
@@ -114,22 +228,20 @@ function pegarLocalizacao() {
             map.removeLayer(marcadorUsuario);
         }
 
-        marcadorUsuario = L.marker([lat, lng], { icon: iconeRoxo })
+        marcadorUsuario = L.marker([lat, lng], { icon: iconeYellow })
             .addTo(map)
             .bindPopup("📍 Você está aqui")
             .openPopup();
 
         map.setView([lat, lng], 14);
 
-        atualizarPopups(); // 🔥 aqui atualiza os links
+        atualizarPopups();
 
     });
 }
 
-// 1. Primeiro mostra igrejas
+// Inicialização
 adicionarIgrejas();
-
-// 2. Depois tenta pegar localização
 pegarLocalizacao();
 
 </script>
