@@ -8,6 +8,35 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
+    /* Ajustes para Celular */
+@media (max-width: 768px) {
+    .fondo {
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        bottom: auto !important; /* Tira do fundo para não sumir com o teclado */
+        top: 10px; /* Coloca no topo no mobile */
+        width: 90% !important;
+    }
+    
+    .fondo:hover {
+        width: 90% !important; /* Evita que cresça demais */
+    }
+
+    .painel {
+        top: 65px !important; /* Desce para não ficar embaixo da busca */
+        right: 5% !important;
+        width: 90% !important;
+        min-width: auto !important;
+        max-height: 30vh; /* Limita a altura para não cobrir o mapa todo */
+        overflow-y: auto;
+    }
+
+    .painel-bottom {
+        bottom: 20px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+    }
+}
     body { margin: 0; font-family: Arial; }
     #map { height: 100vh; }
 
@@ -144,16 +173,23 @@
     // Se a busca retornar exatamente 1 igreja, focamos nela e abrimos as informações
     if (encontrados.length === 1) {
         const alvo = encontrados[0];
+        const latLng = [alvo.igreja.lat, alvo.igreja.lng];
         
-        // 1. Move o mapa até ela
-        map.setView([alvo.igreja.lat, alvo.igreja.lng], 15);
+        // No mobile, centralizamos um pouco acima para o teclado não cobrir
+        if (window.innerWidth < 768) {
+            map.setView(latLng, 15);
+            // Faz o mapa "subir" um pouco (0.005 graus) para compensar o teclado
+            map.panBy([0, -100]); 
+        } else {
+            map.setView(latLng, 15);
+        }
         
-        // 2. Abre o balãozinho (popup) no mapa
         alvo.marker.openPopup();
-        
-        // 3. Atualiza o painel lateral de dias de culto (sua função existente)
         atualizarPainel(alvo.igreja);
-    } 
+
+        // Fecha o teclado automaticamente após encontrar (opcional)
+        document.getElementById("inputBusca").blur();
+    }
     // Se o usuário apagar a busca, resetamos o painel para a mensagem inicial
     else if (termoBusca === "") {
         document.getElementById("painelCulto").innerHTML = "<b>📅 Dias de Culto</b><br>Clique em uma igreja";
@@ -165,6 +201,9 @@ const map = L.map('map').setView([-3.05, -60.0], 13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
 }).addTo(map);
+window.visualViewport.addEventListener('resize', () => {
+    map.invalidateSize(); // Força o Leaflet a recalcular o tamanho da tela
+});
 
 // Ícones
 const iconeAzul = L.icon({
