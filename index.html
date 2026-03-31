@@ -37,7 +37,7 @@
     .fondo {
         position: absolute; /* Essencial para flutuar sobre o mapa */
         top: 20px;          /* Distância do topo */
-        left: 50%;          /* Move para o meio da largura */
+        left: 25%;          /* Move para o meio da largura */
         transform: translateX(-50%); /* Ajuste fino para centralizar exato */
         width: 60px;        /* Tamanho inicial pequeno */
      height: 45px;       /* Altura definida */
@@ -82,21 +82,7 @@
         font-size: 14px;
         min-width: 230px;
     }
-    /* Painel superior esquerdo */
-    .painel-base {
-        position: absolute;
-        top: 15px;
-        left: 15px;
-        width: 230px;
-        background: white;
-        padding: 12px;
-        border-radius: 8px;
-        box-shadow: 0 0 10px rgba(0,0,0,0.2);
-        z-index: 1000;
-        font-size: 14px;
-        min-width: 230px;
-     
-    }
+   
 
     /* Painel inferior */
     .painel-bottom {
@@ -128,12 +114,6 @@
     <b>📅 Dias de Culto</b><br>
     Clique em uma igreja
 </div>
-<details class="painel-base" id="painelInstrucoes">
-    <summary>📌 Instruções</summary>
-    <p>1. Clique em uma igreja para ver os dias de culto e obter a rota.</p>
-    <p>2. Use o botão "Igreja mais próxima" para encontrar a igreja mais próxima de você.</p>
-    <p>3. Certifique-se de permitir o acesso à sua localização para uma melhor experiência.</p>
-</details>
 
 <div class="painel-bottom">
     <button onclick="igrejaMaisProxima()">⛪ Igreja mais próxima</button>
