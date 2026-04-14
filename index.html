@@ -172,48 +172,41 @@
 
 function irParaMinhaLocalizacao() {
 
-    if (!navigator.geolocation) {
-        alert("Geolocalização não suportada");
-        return;
+    // 🚀 1. Se já tem localização, usa na hora (instantâneo)
+    if (minhaLocalizacao) {
+
+        map.flyTo([minhaLocalizacao.lat, minhaLocalizacao.lng], 16, {
+            animate: true,
+            duration: 1
+        });
+
+        if (marcadorUsuario) {
+            marcadorUsuario.openPopup();
+        }
+
     }
 
-    navigator.geolocation.getCurrentPosition(
-        function(pos) {
+    // 🔄 2. Atualiza em segundo plano (sem travar)
+    if (!navigator.geolocation) return;
 
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
+    navigator.geolocation.getCurrentPosition(pos => {
 
-            minhaLocalizacao = { lat, lng };
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
 
-            setTimeout(() => {
-                map.invalidateSize();
+        minhaLocalizacao = { lat, lng };
 
-                map.flyTo([lat, lng], 16, {
-                    animate: true,
-                    duration: 1.5
-                });
-
-            }, 200);
-
-            if (marcadorUsuario) {
-                map.removeLayer(marcadorUsuario);
-            }
-
-            marcadorUsuario = L.marker([lat, lng], { icon: iconeYellow })
-                .addTo(map)
-                .bindPopup("📍 Você está aqui")
-                .openPopup();
-
-        },
-        function(error) {
-            console.log(error);
-            alert("Erro ao obter localização. Ative o GPS.");
-        },
-        {
-            enableHighAccuracy: false,
-            timeout: 5000
+        // atualiza marcador sem travar usuário
+        if (marcadorUsuario) {
+            map.removeLayer(marcadorUsuario);
         }
-    );
+
+        marcadorUsuario = L.marker([lat, lng], { icon: iconeYellow })
+            .addTo(map)
+            .bindPopup("📍 Você está aqui");
+
+    });
+
 
 
     // LÓGICA DE ATUALIZAÇÃO DO PAINEL E POPUP:
