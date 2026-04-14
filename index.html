@@ -22,14 +22,10 @@
         width: 90% !important; /* Evita que cresça demais */
     }
 
-    .painel {
-        top: 65px !important; /* Desce para não ficar embaixo da busca */
-        right: 5% !important;
-        width: 90% !important;
-        min-width: auto !important;
-        max-height: 30vh; /* Limita a altura para não cobrir o mapa todo */
-        overflow-y: auto;
+    button:nth-child(2) {
+    background: #007bff;
     }
+
 
     .painel-bottom {
         bottom: 20px !important;
@@ -97,22 +93,7 @@
         color: #6528F7;
         cursor: pointer;
     } 
-    /* Painel superior direito */
-    .painel {
-        position: absolute;
-        top: 15px;
-        right: 15px;
-        width: 230px;
-        background: white;
-        padding: 12px;
-        border-radius: 8px;
-        box-shadow: 0 0 10px rgba(0,0,0,0.2);
-        z-index: 1000;
-        font-size: 14px;
-        min-width: 230px;
-    }
-   
-
+    
     /* Painel inferior */
     .painel-bottom {
         position: absolute;
@@ -139,35 +120,101 @@
 </div>
 <div id="map"></div>
 
-<div class="painel" id="painelCulto">
-    <b>📅 Dias de Culto</b><br>
-    Clique em uma igreja
+
 </div>
 
 <div class="painel-bottom">
     <button onclick="igrejaMaisProxima()">⛪ Igreja mais próxima</button>
+    <button onclick="irParaMinhaLocalizacao()">📍 Minha localização</button>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    function buscarIgreja() {
-    const termoBusca = document.getElementById("inputBusca").value.toLowerCase();
+   function buscarIgreja() {
+    const termoBusca = document.getElementById("inputBusca").value.toLowerCase().trim();
     
-    // Filtramos os marcadores que batem com a busca
     let encontrados = [];
 
     marcadores.forEach(item => {
-        const nomeIgreja = item.igreja.nome.toLowerCase();
-        const enderecoIgreja = item.igreja.morada.toLowerCase();
+        const nomeIgreja = (item.igreja.nome || "").toLowerCase();
+        const enderecoIgreja = (item.igreja.morada || "").toLowerCase();
 
         if (nomeIgreja.includes(termoBusca) || enderecoIgreja.includes(termoBusca)) {
-            item.marker.addTo(map);
-            encontrados.push(item); // Adiciona na lista de resultados visíveis
+            if (!map.hasLayer(item.marker)) {
+                item.marker.addTo(map);
+            }
+            encontrados.push(item);
         } else {
-            map.removeLayer(item.marker);
+            if (map.hasLayer(item.marker)) {
+                map.removeLayer(item.marker);
+            }
         }
     });
+
+    // Se encontrar só 1 igreja
+    if (encontrados.length === 1) {
+        const alvo = encontrados[0];
+        const latLng = [alvo.igreja.lat, alvo.igreja.lng];
+
+        if (window.innerWidth < 768) {
+            map.setView(latLng, 15);
+            map.panBy([0, -100]);
+        } else {
+            map.setView(latLng, 15);
+        }
+
+        alvo.marker.openPopup();
+        document.getElementById("inputBusca").blur();
+    }
+} // ← FECHAMENTO CORRETO DA FUNÇÃO
+
+
+function irParaMinhaLocalizacao() {
+
+    if (!navigator.geolocation) {
+        alert("Geolocalização não suportada");
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        function(pos) {
+
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+
+            minhaLocalizacao = { lat, lng };
+
+            setTimeout(() => {
+                map.invalidateSize();
+
+                map.flyTo([lat, lng], 16, {
+                    animate: true,
+                    duration: 1.5
+                });
+
+            }, 200);
+
+            if (marcadorUsuario) {
+                map.removeLayer(marcadorUsuario);
+            }
+
+            marcadorUsuario = L.marker([lat, lng], { icon: iconeYellow })
+                .addTo(map)
+                .bindPopup("📍 Você está aqui")
+                .openPopup();
+
+        },
+        function(error) {
+            console.log(error);
+            alert("Erro ao obter localização. Ative o GPS.");
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000
+        }
+    );
+
 
     // LÓGICA DE ATUALIZAÇÃO DO PAINEL E POPUP:
     // Se a busca retornar exatamente 1 igreja, focamos nela e abrimos as informações
@@ -184,17 +231,15 @@
             map.setView(latLng, 15);
         }
         
-        alvo.marker.openPopup();
-        atualizarPainel(alvo.igreja);
+        alvo.marker.openPopup(); 
+        
+        
 
         // Fecha o teclado automaticamente após encontrar (opcional)
         document.getElementById("inputBusca").blur();
     }
-    // Se o usuário apagar a busca, resetamos o painel para a mensagem inicial
-    else if (termoBusca === "") {
-        document.getElementById("painelCulto").innerHTML = "<b>📅 Dias de Culto</b><br>Clique em uma igreja";
+    
     }
-}
 
 const map = L.map('map').setView([-3.05, -60.0], 13);
 
@@ -241,6 +286,13 @@ const igrejas = [
             morada: "Av. Penetracao Norte Sul- Armando Mendes" ,
             culto: "<br>Terça-Feira 19:30h</br><br>Domingo 18:30h</br>"
         },
+        { 
+            nome: "CCB - Colônia Antônio Aleixo ", 
+            lat: -3.0904, lng: -59.8914, 
+            morada: "R. Antônio Aleixo, 234 - Colônia Antônio Aleixo ",
+            culto: "<br>Quinta-Feira 19:30h</br><br>Sábado 19:30h</br>"
+        },
+
         {            
             nome: "CCB - Campos Sales", 
             lat: -2.9920, lng: -60.0431, 
@@ -254,11 +306,18 @@ const igrejas = [
             culto: "<br>Sexta-Feira 20:00h</br><br>Domingo 18:30h</br>"
         },
         { 
+            nome: "CCB - Cidade de Deus", 
+            lat: -3.0136, lng: -59.9387, 
+            morada: " R. São Davi, 547-507 - Nova Cidade 2",
+            culto: "<br>Quarta-Feira 19:30h</br><br>Domingo 18:30h</br>"
+        },
+        { 
             nome: "CCB - Cidade Nova", 
             lat: -3.0320, lng: -59.9727, 
             morada: "R. Macau, 6 - Nova Cidade" ,
             culto:"<br>Quinta-Feira 19:30h</br><br>Domingo 18:30h</br>"
         },
+    
         { 
             nome: "CCB - Coroado", 
             lat: -3.0841, lng: -59.9777, 
@@ -383,6 +442,13 @@ const igrejas = [
             culto: "<br>Segunda-Feira 19:30h</br><br>Quarta-Feira 19:30h</br><br>Sábado 19:30h</br>"
         },
         { 
+            nome: "CCB - Santa Maria", 
+            lat: -3.0984, lng: -59.9174,
+            morada: "R. 10, 68 - Mauazinho",
+            culto: "<br>Quarta-Feira 19:30h</br><br>Domingo 18:30h</br>"
+        },
+
+        { 
             nome: "CCB - Santo Agostinho", 
             lat: -3.0926, lng: -60.0662,
             morada: "R. Profa. Emília Cavalcante, 1327 - Santo Agostinho", 
@@ -437,19 +503,25 @@ function criarPopup(igreja) {
     }
 
     return `
-        <b>${igreja.nome}</b><br>
-        <span style="color: #666; font-size: 11px;">${igreja.morada}</span><br>
-        <a href="${link}" target="_blank" class="btn-rota">
-            🚗 Ir pelo Google Maps
-        </a>
+        <div style="font-size:13px; line-height:1.4;">
+            <b style="font-size:14px;">⛪ ${igreja.nome}</b><br>
+
+            <span style="color:#666; font-size:11px;">
+                ${igreja.morada}
+            </span>
+
+            <div style="margin-top:8px; padding:6px; background:#f5f5f5; border-radius:6px;">
+                <b>📅 Horários:</b>
+                ${igreja.culto}
+            </div>
+
+            <a href="${link}" target="_blank" class="btn-rota">
+                🚗 Ir pelo Google Maps
+            </a>
+        </div>
     `;
 }
 
-// Atualiza painel
-function atualizarPainel(igreja) {
-    document.getElementById("painelCulto").innerHTML =
-        `<b>📅 ${igreja.nome}</b><br>${igreja.culto}`;
-}
 
 // Adicionar igrejas
 function adicionarIgrejas() {
@@ -467,7 +539,17 @@ function adicionarIgrejas() {
         marcadores.push({ marker, igreja });
     });
 }
+map.on("popupclose", () => {
+    
+    // limpa campo de busca
+    document.getElementById("inputBusca").value = "";
 
+    // mostra todos os marcadores novamente
+    marcadores.forEach(item => {
+        item.marker.addTo(map);
+    });
+
+});
 // Igreja mais próxima
 function igrejaMaisProxima() {
 
